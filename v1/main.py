@@ -63,7 +63,7 @@ def validate_token(credentials: HTTPAuthorizationCredentials = Depends(security)
 
     if token != STATIC_TOKEN:
         raise HTTPException(status_code=401, detail="Invalid token")
-    
+
 # Function to fetch and save coin data and price log
 def fetch_and_save_coins():
     while True:
@@ -224,3 +224,8 @@ def get_coin_price_logs(coin_id: str) -> Dict[str, Any]:
     session.close()
 
     return coin_info
+
+if __name__ == '__main__':
+    import uvicorn
+
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True, log_level='info')
