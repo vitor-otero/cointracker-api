@@ -1,4 +1,4 @@
-from fastapi import Depends, FastAPI, BackgroundTasks, HTTPException
+from fastapi import Depends, FastAPI, BackgroundTasks, HTTPException, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
 from sqlalchemy.orm import sessionmaker
@@ -114,20 +114,33 @@ def fetch_and_save_coins():
                 session.add(coin_data)
 
             # Create a new price log entry
+            now = datetime.now()
+            # Extract the day and hour components
+            day = now.day
+            hour = now.hour
+            # Create a new price log entry
             price_log = PriceLog(
                 coin_id=coin["id"],
                 coin_symbol=coin["symbol"].lower(),  # Save coin symbol
                 price_usd=float(coin["priceUsd"]),
-                log_time=datetime.now()
-            )
+                log_time=datetime(year=now.year, month=now.month, day=day, hour=hour)
+                )
             session.add(price_log)
 
-        # Commit the changes to the database
-        session.commit()
-        session.close()
+                # Commit the changes to the database
+            session.commit()
+            session.close()
 
-        # Wait for 1 minute before fetching the data again
-        time.sleep(60)
+        # Wait for 1 hour before fetching the data again
+        time.sleep(3600)
+
+# Register an event handler for when the application starts
+@app.on_event("startup")
+async def startup_event():
+    # Create a background task to fetch and save coins
+    background_tasks = BackgroundTasks()
+    background_tasks.add_task(fetch_and_save_coins)
+    app.background_tasks = background_tasks
 
 # Endpoint to start the background task
 @app.get("/start-task")
@@ -142,10 +155,9 @@ class PriceLogData(BaseModel):
     log_time: datetime
 
 
-
 ## Endpoint to get all price logs and coin data for all coins
 @app.get("/coins/price-logs")
-def get_all_coin_price_logs() -> List[Dict[str, Any]]:
+def get_all_coin_price_logs(start_date: datetime = Query(None, description="Start date for the log"), end_date: datetime = Query(None, description="End date for the log")) -> List[Dict[str, Any]]:
     session = SessionLocal()
 
     coins = session.query(Coin).all()
@@ -153,7 +165,14 @@ def get_all_coin_price_logs() -> List[Dict[str, Any]]:
     coin_data = []
 
     for coin in coins:
-        price_logs = session.query(PriceLog).filter_by(coin_id=coin.id).all()
+        query = session.query(PriceLog).filter(PriceLog.coin_id == coin.id)
+        if start_date and end_date:
+            query = query.filter(PriceLog.log_time >= start_date, PriceLog.log_time <= end_date)
+        elif start_date:
+            query = query.filter(PriceLog.log_time >= start_date)
+        elif end_date:
+            query = query.filter(PriceLog.log_time <= end_date)
+        price_logs = query.all()
 
         coin_logs = [
             PriceLogData(price=price_log.price_usd, log_time=price_log.log_time)
@@ -185,7 +204,7 @@ def get_all_coin_price_logs() -> List[Dict[str, Any]]:
 
 ## Endpoint to get price logs and data for a specific coin by ID or symbol
 @app.get("/coin/{coin_id}/price-logs")
-def get_coin_price_logs(coin_id: str) -> Dict[str, Any]:
+def get_coin_price_logs(coin_id: str, start_date: datetime = Query(None, description="Start date for the log"), end_date: datetime = Query(None, description="End date for the log")) -> Dict[str, Any]:
     session = SessionLocal()
 
     # Check if coin_id is a valid ID
@@ -198,7 +217,14 @@ def get_coin_price_logs(coin_id: str) -> Dict[str, Any]:
         if not coin:
             raise HTTPException(status_code=404, detail="Coin not found")
 
-    price_logs = session.query(PriceLog).filter_by(coin_id=coin.id).all()
+    query = session.query(PriceLog).filter(PriceLog.coin_id == coin.id)
+    if start_date and end_date:
+        query = query.filter(PriceLog.log_time >= start_date, PriceLog.log_time <= end_date)
+    elif start_date:
+        query = query.filter(PriceLog.log_time >= start_date)
+    elif end_date:
+        query = query.filter(PriceLog.log_time <= end_date)
+    price_logs = query.all()
 
     coin_logs = [
         PriceLogData(price=price_log.price_usd, log_time=price_log.log_time)
