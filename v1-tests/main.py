@@ -118,12 +118,13 @@ def fetch_and_save_coins():
             # Extract the day and hour components
             day = now.day
             hour = now.hour
+            minute = now.minute
             # Create a new price log entry
             price_log = PriceLog(
                 coin_id=coin["id"],
                 coin_symbol=coin["symbol"].lower(),  # Save coin symbol
                 price_usd=float(coin["priceUsd"]),
-                log_time=datetime(year=now.year, month=now.month, day=day, hour=hour)
+                log_time=datetime(year=now.year, month=now.month, day=day, hour=hour, minute=minute)
                 )
             session.add(price_log)
 
@@ -132,15 +133,15 @@ def fetch_and_save_coins():
             session.close()
 
         # Wait for 1 hour before fetching the data again
-        time.sleep(3600)
+        time.sleep(900)
 
 # Register an event handler for when the application starts
-@app.on_event("startup")
-async def startup_event():
-    # Create a background task to fetch and save coins
-    background_tasks = BackgroundTasks()
-    background_tasks.add_task(fetch_and_save_coins)
-    app.background_tasks = background_tasks
+#@app.on_event("startup")
+#async def startup_event():
+#    # Create a background task to fetch and save coins
+#    background_tasks = BackgroundTasks()
+#    background_tasks.add_task(fetch_and_save_coins)
+#    app.background_tasks = background_tasks
 
 # Endpoint to start the background task
 @app.get("/start-task")
