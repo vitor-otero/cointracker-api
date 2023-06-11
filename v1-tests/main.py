@@ -132,16 +132,16 @@ def fetch_and_save_coins():
             session.commit()
             session.close()
 
-        # Wait for 1 hour before fetching the data again
-        time.sleep(900)
+        # Wait for 15 minutes before fetching the data again
+        time.sleep(60)
 
-# Register an event handler for when the application starts
-#@app.on_event("startup")
-#async def startup_event():
-#    # Create a background task to fetch and save coins
-#    background_tasks = BackgroundTasks()
-#    background_tasks.add_task(fetch_and_save_coins)
-#    app.background_tasks = background_tasks
+ #Register an event handler for when the application starts
+@app.on_event("startup")
+async def startup_event():
+   # Create a background task to fetch and save coins
+    background_tasks = BackgroundTasks()
+    background_tasks.add_task(fetch_and_save_coins)
+    app.background_tasks = background_tasks
 
 # Endpoint to start the background task
 @app.get("/start-task")
